@@ -1,0 +1,17 @@
+.action-cards- {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: space-between;
+}
+
+
+.dark-card{
+    background-color:black;
+    color:blueviolet;
+    
+}
+
+.light-card{
+    background-color: white;
+}
