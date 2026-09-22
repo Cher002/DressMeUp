@@ -58,7 +58,7 @@ export default function Auth() {
   return ( 
     <div className="auth-container">
       <h1>DressMeUp</h1>
-      <p className="auth-siginup-text">
+      <p className="auth-signup-text">
         {resetPassword ? 'Reset your password' : isSignUp ? 'Create an account to get started' : 'Sign in to your account'}
       </p>
 

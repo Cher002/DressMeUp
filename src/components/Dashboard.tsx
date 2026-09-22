@@ -1,4 +1,6 @@
+import { useRef } from 'react'
 import './Dashboard.css'
+import './Auth'
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import type {User} from '@supabase/supabase-js' //supabasde user object0
@@ -12,9 +14,80 @@ interface ClothingItem {
   brand?: string; // The ? makes it optional!
 }
 
+function WardrobeCategory ({ category, userId}: { category : string, userId: string }) {
+  
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  
 
-export default function Dashboard() {
-    const [user, setUser] = useState<User | null>(null)
+
+  //function handling file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files?.[0];
+
+    if (!files) return;
+
+    //uploading image to supabase storage and inserting into database
+    try{
+     
+      //create unique file name
+      const fileName = `${userId}/${category.toUpperCase()}/${Date.now()}_${files.name}`;
+      /*date.now() switch for other date method)*/
+      
+      
+      setUploading(true);
+
+      //insert into storage bucket
+      const { data, error: uploadError } = await supabase.storage.from('clothing_images').upload(fileName, files);
+      if (uploadError) throw uploadError;
+
+      //insert into database table
+      const {error: dbError } = await supabase.from('clothing').insert({user_id: userId, category: category,is_short: false, image_url: fileName, created_at: Date.now() }).select();
+      /*is short functionaloty to added later, for now just set to false*/
+      if (dbError) throw dbError;
+    
+
+    }catch{
+       
+          console.error("Error uploading file:", uploadError);
+
+          console.error("Error inserting into database:", dbError);
+
+    } finally {
+      setUploading(false);
+    }
+
+  }
+
+
+    //handle buttom click
+  const handleAddItem = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    if (inputRef.current) {
+      inputRef.current.click(); // Trigger the file input click
+    }
+    else return;
+  }
+
+  return(
+    <div className="clothing-category">
+      <div className="category-header">
+        <h3>{category}</h3>
+        <span>0</span>
+      </div>
+      <div className="clothing-scroll-list">
+        <button className="add-item-btn" onClick={handleAddItem}>+</button>
+        <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
+           
+
+      </div>
+    </div>
+  );
+}
+
+  export default function Dashboard() {
+    const [user, setUser] = useState<User|null>(null)
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -75,34 +148,49 @@ export default function Dashboard() {
       {/*tab content --- to be done later*/}
       <section className="tab-content">
         <button className="create-outfit-btn">Create Outfit</button>
-
       </section>
 
-      {/*user wardrobe */}
-      <section className="wardrobe">
+
+      <section className="wardrobe-section">
         <h2>My Wardrobe</h2>
 
-        {/*Map out clothing items*/}
-        <div className="clothing-category">
-          <div className="category-header">
-            <h3>Tops</h3>
-            <span>3</span>
-          </div>
-          <div className="clothing-scroll-list">
-            <button className="add-item-btn">+ Add</button>
-            <div className="clothing-placeholder">Img 1</div>
-            <div className="clothing-placeholder">Img 2</div>
-          </div>
-        </div>
-      </section>
+      {/*user wardrobeno type mismatch, using && en sures  */}
+        {user && (<WardrobeCategory category="Tops" userId={user.id} /> )}
+        {user && (<WardrobeCategory category="Bottoms" userId={user.id} /> )}
+        {user && (<WardrobeCategory category="Shoes" userId={user.id} /> )}
+        {user && (<WardrobeCategory category="Accessories" userId={user.id} /> )}
 
-      {/*bottom nav bar*/}
+        <div style={{ marginTop: '20px' }}>
+          <button className="add-item-btn"
+            onClick={() => {
+              /*await supabase.storage.from('wardrobe').upload('imagepathway.imp', file);*/
+              console.log("need to putnput type ='file' before uploading ")
+            }} //error
+          >
+            Test Upload
+          </button>
+        </div>
+    
+      </section>
+          
+
+      <div className="signout">
+        <button className="signout-btn"
+          onClick={async () => {
+            await supabase.auth.signOut()
+          }}
+         >
+          Sign Out
+        </button>
+      </div>
+
+     
+
+      {/*bottom nav bar */}
       <nav className="bottom-nav">
         {/* home closet create*/}
       </nav>
     </div>
-
-         
-      
-  )
+     
+  );
 }
