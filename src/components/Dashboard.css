@@ -3,15 +3,37 @@
     flex-direction: column;
     gap: 20px;
     justify-content: space-between;
+    color:brown
 }
 
 
 .dark-card{
     background-color:black;
-    color:blueviolet;
-    
+    color:rgb(43, 226, 186);
+    width: 50%;
 }
 
 .light-card{
     background-color: white;
+}
+
+.clothing-scroll-list{
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+}
+
+.clothing-placeholder{
+    width: 200;
+    height: 200;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius:8px
+}
+
+
+.clothing-placeholder img{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
