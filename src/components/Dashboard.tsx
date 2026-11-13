@@ -1,5 +1,6 @@
 import './Dashboard.css'
 import './Auth'
+import {EditUploads} from './OutfitBuilder'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../utils/supabase'
 import {type User} from '@supabase/supabase-js' 
@@ -78,8 +79,13 @@ function WardrobeCategory ({ category, userId}: { category : string, userId: str
       setUploading(true)
       const fileName = `${userId}/${category.toUpperCase()}/${crypto.randomUUID()}-${file.name}`;
     
+      const prompt = 'Render the provided image so that the background is plain white, and only keep the ${category} item in the generated image';
+      const cleanedImage = await EditUploads(file, prompt);
+      const toUpload = cleanedImage ?? file  //if agent failed revert to original image provided.
+
+
       //upload fie into storage bucket clthing_images
-      const { error: uploadError } = await supabase.storage.from('clothing_images').upload(fileName, file);
+      const { error: uploadError } = await supabase.storage.from('clothing_images').upload(fileName, toUpload, {contentType: toUpload.type});
       if (uploadError) throw uploadError;
 
 
@@ -145,14 +151,10 @@ function WardrobeCategory ({ category, userId}: { category : string, userId: str
              src={item.signedUrl}
              alt={item.name ?? item.category}
              onLoad={() => {
-               // #region agent log
-               fetch('http://127.0.0.1:7885/ingest/9107199e-57df-46c6-82aa-5370ac86b64b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0622b4'},body:JSON.stringify({sessionId:'0622b4',runId:'pre-fix',hypothesisId:'E',location:'Dashboard.tsx:img:onLoad',message:'img loaded',data:{category,itemId:item.id,hasSrc:Boolean(item.signedUrl)},timestamp:Date.now()})}).catch(()=>{});
-               // #endregion
+        
              }}
              onError={() => {
-               // #region agent log
-               fetch('http://127.0.0.1:7885/ingest/9107199e-57df-46c6-82aa-5370ac86b64b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0622b4'},body:JSON.stringify({sessionId:'0622b4',runId:'pre-fix',hypothesisId:'E',location:'Dashboard.tsx:img:onError',message:'img failed to load',data:{category,itemId:item.id,srcPreview:item.signedUrl?.slice?.(0,80) ?? null},timestamp:Date.now()})}).catch(()=>{});
-               // #endregion
+
              }}
            />
            {/*maybe for easy convenience they are all category or it is all names?*/}
