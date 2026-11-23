@@ -1,182 +1,29 @@
 import './Dashboard.css'
 import './Auth'
-import {EditUploads} from './OutfitBuilder'
-import { useState, useEffect, useRef } from 'react'
+import UploadRetrieveItems from './RetrieveImages'
+import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import {type User} from '@supabase/supabase-js' 
+import { useNavigate, Link } from 'react-router-dom'
 
 
 
-//interface to describe clothing:
-interface ClothingItem {
-  id: string;
-  category: string
-  image_url: string;
-  signedUrl?: string; // Optional property
-  name?: string; // Optional property
-  created_at: string;
-}
-
-
-
-function WardrobeCategory ({ category, userId}: { category : string, userId: string }) {
-  
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [items, setItems] = useState<ClothingItem[]>([]);
-
-
-    useEffect(() => {
-      const retrieveImages = async () => {
-
-        //retieves all existing clothing from the specified category, from the user
-        const { data, error } = await supabase.from('clothing').select('*').eq('user_id', userId).eq('category', category);
-
-        if(error){
-          console.error("Error retrieving images:", error);
-          return;
-        } 
-          
-        //if there are existing clothing in the specified category 
-        if (data && data.length >0){
-          const paths = data.map((item: { image_url: string }) => item.image_url);
-          const { data: signedData, error: signError } = await supabase.storage.from('clothing_images')                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       .createSignedUrls(paths, 3600);
-        
-
-          if (signError){
-            console.error("Error creating signed URLs:", signError);
-            return;
-          }
-
-          const urlByPath = new Map((signedData ?? []).map((entry) => [entry.path, entry.signedUrl]) ?? []);
-          const itemsWithUrls = data.map((item) => ({
-            ...item,
-            signedUrl: urlByPath.get(item.image_url), // Add the signed URL to the item}))
-          }));
-
-
-          setItems(itemsWithUrls); //add the items with signedUrl
-        } else {
-          setItems([]); // No items found, set to empty array
-        }
-      };
-      
-      retrieveImages();
-  }, [category, userId]);
-
-
-
-  //file upload
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    //no files currently uploaded
-    if (!file) return;
-
-    //uploading image to supabase storage and inserting into database
-    try{
-      
-      setUploading(true)
-      const fileName = `${userId}/${category.toUpperCase()}/${crypto.randomUUID()}-${file.name}`;
-    
-      const prompt = 'Render the provided image so that the background is plain white, and only keep the ${category} item in the generated image';
-      const cleanedImage = await EditUploads(file, prompt);
-      const toUpload = cleanedImage ?? file  //if agent failed revert to original image provided.
-
-
-      //upload fie into storage bucket clthing_images
-      const { error: uploadError } = await supabase.storage.from('clothing_images').upload(fileName, toUpload, {contentType: toUpload.type});
-      if (uploadError) throw uploadError;
-
-
-      // Let Postgres default created_at (timestamptz).   not Date.now()!
-      const insertPayload = { user_id: userId, category: category, is_short: false, image_url: fileName };
-    
-      //insert data into table 'clothing'
-      const {error: dbError } = await supabase.from('clothing').insert(insertPayload);
-     
-      /*is short functionaloty to added later, for now just set to false*/
-      if (dbError) throw dbError;
-
-      console.log("uploaded and saved to database")
-    
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage.from('clothing_images').createSignedUrl(fileName, 3600);
-      //CREATES A SIGNED URL FOR THE UPLOADED FILE
-      if (signedUrlError) throw signedUrlError;
-
-      //refresh local state with the NEW signed url, 
-      setItems((prev) => [...prev, { id: fileName, category, name: file.name, image_url: fileName, signedUrl: signedUrlData?.signedUrl, created_at: new Date().toISOString() }]);
-
-
-    }catch(err){    
-          console.error("Upload error:", err);
-         
-    } finally {
-      setUploading(false);
-      event.target.value = '';
-    }
-  };
- 
-
-
-
-
-  //handle buttom click
-  const handleAddItem = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-
-    if (inputRef.current) {
-      inputRef.current.click(); // Trigger the file input click
-    }
-  };
-
-  return(
-    <div className="clothing-category">
-      <div className="category-header">
-        <h3>{category}</h3>
-       {/* <span>{items.length}</span>*/}
-      </div>
-      <div className="clothing-scroll-list">
-        <button className="add-item-btn" onClick={handleAddItem} disabled={uploading}>
-          {uploading ? "..." : "+"}
-        </button>
-        <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
-
-
-      {/*placeholder cards for f4tch4ed it4ems*/}
-   
-      {items.map((item) => (
-        <div key={item.id} className="clothing-placeholder">
-           <img
-             src={item.signedUrl}
-             alt={item.name ?? item.category}
-             onLoad={() => {
-        
-             }}
-             onError={() => {
-
-             }}
-           />
-           {/*maybe for easy convenience they are all category or it is all names?*/}
-        </div>
-        
-      ))}
-      <span>{items.length}</span>
-      </div>
-    </div>
-    
-  );
-}
 
   export default function Dashboard() {
     const [user, setUser] = useState<User|null>(null)
     const [loading, setLoading] = useState<boolean>(true)
-    const [error, setError] = useState<string | null>(null)
-    const [images, setImages] = useState<string[]>([]);
+    //const [error, setError] = useState<string | null>(null)
+    //const [images, setImages] = useState<string[]>([]);
     const [isSignedOut, setIsSignedOut] = useState(false);
-    const [isuploaded, setUploading] = useState(false);
+    //const [isuploaded, setUploading] = useState(false);
 
 
+    const navigate = useNavigate();
+
+    
+    /*Login Screen
+    
+    */
     useEffect(() => {
         const verifyUser = async () => {
             const { data: { user }, error } = await supabase.auth.getUser()
@@ -193,6 +40,8 @@ function WardrobeCategory ({ category, userId}: { category : string, userId: str
         verifyUser()
     }, [])
 
+
+    //Sign user out if user presses 'sign out' button
     const handleSignOut = async () => {
         await supabase.auth.signOut();
         setIsSignedOut(true); 
@@ -200,7 +49,6 @@ function WardrobeCategory ({ category, userId}: { category : string, userId: str
 
     //const for the buttons 
 
-  
   if (loading) return <div className="loading">Loading your account...</div>
 
 
@@ -220,7 +68,7 @@ function WardrobeCategory ({ category, userId}: { category : string, userId: str
 
       {/*Action cards */}
       <section className = "action-cards">
-        <div className="dark-card">Create Outfit</div>
+        <Link to="/create-outfit" className="dark-card">Create Outfit</Link>
         <div className="light-card">Make album</div>
       </section>
 
@@ -230,13 +78,11 @@ function WardrobeCategory ({ category, userId}: { category : string, userId: str
         <button className="tab">Saved Outfits</button>
         <button className="tab">Favorites</button>
         <button className="tab">Albums</button>
-        <button className="tab">CreateOutfit</button>
+
+        {/*When clicked changes url*/}
+        <button className="create-outfit-btn" onClick={() => navigate('/create-outfit')}>Create Outfit</button> 
       </nav>
             
-      {/*tab content --- to be done later*/}
-      <section className="tab-content">
-        <button className="create-outfit-btn">Create Outfit</button>
-      </section>
 
 
       <section className="wardrobe-section">
@@ -245,16 +91,16 @@ function WardrobeCategory ({ category, userId}: { category : string, userId: str
 
         {user && (
         <>
-          <WardrobeCategory category="Tops" userId={user.id} />
-          <WardrobeCategory category="Bottoms" userId={user.id} /> 
-          <WardrobeCategory category="Shoes" userId={user.id} /> 
-          <WardrobeCategory category="Accessories" userId={user.id} /> 
+          <UploadRetrieveItems category="Tops" userId={user.id} />
+          <UploadRetrieveItems category="Bottoms" userId={user.id} /> 
+          <UploadRetrieveItems category="Shoes" userId={user.id} /> 
+          <UploadRetrieveItems category="Accessories" userId={user.id} /> 
         </>
       )}
     </section>
 
 
-     
+       
     <div className="signout">
       <button className="signout-btn"
         onClick={handleSignOut}>
